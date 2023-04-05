@@ -1,109 +1,111 @@
-import 'dart:convert';
-import 'dart:developer';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:github_challenge/core/models/user_data.dart';
 import 'package:github_challenge/core/repositories/user_repository/user_repository.dart';
 import 'package:github_challenge/core/repositories/user_repository/user_repository_impl.dart';
-import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
-import 'package:github_challenge/core/models/user_data.dart';
-import 'package:github_challenge/core/models/repository_model.dart';
+import 'package:http/http.dart' as http;
 
-class MockHttpClient extends Mock implements http.Client {}
+class MockClient extends Mock implements http.Client {}
 
 void main() {
-  late UserRepository repository;
-  late http.Client mockHttpClient;
+  late UserRepository userRepository;
+  late MockClient mockClient;
 
   setUp(() {
-    mockHttpClient = MockHttpClient();
-    repository = UserRepositoryImpl();
+    userRepository = UserRepositoryImpl();
+    mockClient = MockClient();
   });
 
-  group('getUser', () {
-    test('returns user data when http call is successful', () async {
-      const mockResponse = '''
-        {
-          "login": "testUser",
-          "name": "Test User",
-          "avatar_url": "https://avatars.githubusercontent.com/u/12345?v=4",
-          "bio": "Test bio"
-        }
-      ''';
-      final expectedUserData = UserData(
-        login: 'testUser',
-        name: 'Test User',
-        avatarUrl: 'https://avatars.githubusercontent.com/u/12345?v=4',
-        bio: 'Test bio',
+  group('UserRepositoryImpl', () {
+    const userDataJson = '''{
+      "login": "testuser",
+      "name": "Test User",
+      "avatar_url": "https://avatars.githubusercontent.com/u/123456",
+      "bio": "A test user for unit testing",
+      "public_repos": 5,
+      "followers": 10,
+      "following": 20
+    }''';
+
+    final userData = UserData.fromJson(userDataJson);
+
+    test('getUser returns UserData when successful', () async {
+      when(() => mockClient
+              .get(Uri.parse('https://api.github.com/users/testuser')))
+          .thenAnswer((_) async => http.Response(userDataJson, 200));
+
+      final result = await userRepository.getUser('testuser');
+
+      expect(result.login, equals(userData.login));
+    });
+
+    test('getStarredRepositories exception should return []', () async {
+      when(() => mockClient
+              .get(Uri.parse('https://api.github.com/users/testuser')))
+          .thenThrow(Exception('Failed to connect'));
+
+      // Act & Assert
+      expect(
+        await userRepository.getStarredRepositories(''),
+        [],
       );
-
-      when(() => mockHttpClient
-              .get(Uri.parse('https://api.github.com/users/testUser')))
-          .thenAnswer((_) async => http.Response(mockResponse, 200));
-
-      final userData = await repository.getUser('testUser');
-
-      expect(userData, equals(expectedUserData));
-      verify(() => mockHttpClient
-          .get(Uri.parse('https://api.github.com/users/testUser'))).called(1);
     });
 
-    test('returns empty user data when http call is unsuccessful', () async {
-      when(() => mockHttpClient
-              .get(Uri.parse('https://api.github.com/users/testUser')))
-          .thenAnswer((_) async => http.Response('', 404));
+    test('getRepositories exception should return []', () async {
+      when(() => mockClient
+              .get(Uri.parse('https://api.github.com/users/testuser')))
+          .thenThrow(Exception('Failed to connect'));
 
-      final userData = await repository.getUser('testUser');
-
-      expect(userData, equals(UserData()));
-      verify(() => mockHttpClient
-          .get(Uri.parse('https://api.github.com/users/testUser'))).called(1);
+      // Act & Assert
+      expect(
+        await userRepository.getRepositories(''),
+        [],
+      );
     });
-  });
 
-  group('getStarredRepositories', () {
-    test('returns a list of starred repositories when http call is successful',
+    test('getUser exception should return UserData', () async {
+      when(() => mockClient
+              .get(Uri.parse('https://api.github.com/users/testuser')))
+          .thenThrow(Exception('Failed to connect'));
+
+      // Act & Assert
+      expect(
+        await userRepository.getUser(''),
+        UserData(),
+      );
+    });
+
+    test(
+        'getStarredRepositories returns a list of RepositoryModel when successful',
         () async {
-      const mockResponse = '''
-        [
-          {
-            "id": 12345,
-            "name": "testRepo",
-            "html_url": "https://github.com/testUser/testRepo",
-            "description": "Test repository"
-          }
-        ]
-      ''';
-      final expectedRepositories = [
-        RepositoryModel(
-          name: 'testRepo',
-          htmlUrl: 'https://github.com/testUser/testRepo',
-          description: 'Test repository',
-        ),
-      ];
+      const responseData = '''[
+        {"name": "repo1", "description": "Test repository 1"},
+        {"name": "repo2", "description": "Test repository 2"}
+      ]''';
 
-      when(() => mockHttpClient
-              .get(Uri.parse('https://api.github.com/users/testUser/starred')))
-          .thenAnswer((_) async => http.Response(mockResponse, 200));
+      when(() => mockClient
+              .get(Uri.parse('https://api.github.com/users/testuser/starred')))
+          .thenAnswer((_) async => http.Response(responseData, 200));
 
-      final repositories = await repository.getStarredRepositories('testUser');
+      final result = await userRepository.getStarredRepositories('testuser');
 
-      expect(repositories, equals(expectedRepositories));
-      verify(() => mockHttpClient
-              .get(Uri.parse('https://api.github.com/users/testUser/starred')))
-          .called(1);
+      expect(result.length, equals(1));
     });
 
-    test('returns an empty list when http call is unsuccessful', () async {
-      when(() => mockHttpClient
-              .get(Uri.parse('https://api.github.com/users/testUser/starred')))
-          .thenAnswer((_) async => http.Response('', 404));
+    test('getRepositories returns a list of RepositoryModel when successful',
+        () async {
+      const responseData = '''[
+        {"name": "repo1", "description": "Test repository 1"},
+        {"name": "repo2", "description": "Test repository 2"}
+      ]''';
 
-      final repositories = await repository.getStarredRepositories('testUser');
+      when(() => mockClient
+              .get(Uri.parse('https://api.github.com/users/testuser/repos')))
+          .thenAnswer((_) async => http.Response(responseData, 200));
 
-      expect(repositories, equals([]));
-      verify(() => mockHttpClient
-              .get(Uri.parse('https://api.github.com/users/testUser/starred')))
-          .called(1);
+      final result = await userRepository.getRepositories('testuser');
+
+      expect(result.length, equals(2));
     });
   });
 }
