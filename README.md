@@ -13,6 +13,10 @@ For more information on running Flutter projects in VSCode, see the official Flu
 
 [Flutter Oficial Documentation](https://docs.flutter.dev/get-started/install)
 
+### Demo
+
+https://user-images.githubusercontent.com/58753717/229949951-ab5d0d26-ccff-4851-8399-b00b1279780b.mp4
+
 ### Using the BLoC pattern with Cubit, Get_it, Go_router, and Sqflite
 The BLoC pattern is a popular state management pattern in Flutter, and there are several libraries that can help you implement it, including Cubit, Get_it, Go_router, and Sqflite. Here is a brief overview of each library and how to use them:
 
@@ -175,5 +179,7 @@ For more information on using Sqflite, see the official documentation here.
 
 I hope this documentation helps you get started with using Cubit, Get_it, Go_router, and Sqflite in your Flutter app! If you have any questions or need further assistance, feel free to consult the official documentation for each library or reach out to the
 community for help. Happy coding!
+
+
 
 Carlos Henrique
